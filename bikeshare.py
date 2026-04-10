@@ -1,6 +1,7 @@
 import time
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 CITY_DATA = { 'chicago': 'chicago.csv',
               'new york city': 'new_york_city.csv',
@@ -46,7 +47,11 @@ def load_data(city, month, day):
     Loads data for the specified city and filters by month and day if applicable.
     """
 
-    df = pd.read_csv(CITY_DATA[city])
+    try:
+        df = pd.read_csv(CITY_DATA[city])
+    except FileNotFoundError:
+        print(f"Error: File for {city} not found.")
+        return pd.DataFrame()
 
     df['Start Time'] = pd.to_datetime(df['Start Time'])
 
@@ -57,6 +62,8 @@ def load_data(city, month, day):
     if month != 'all':
         month_index = MONTHS.index(month)
         df = df[df['month'] == month_index]
+        if df.empty:
+            print("No data available for the selected filters.")
 
     if day != 'all':
         df = df[df['day_of_week'] == day.title()]
@@ -82,6 +89,14 @@ def time_stats(df):
     print("\nThis took %s seconds." % (time.time() - start_time))
     print('-'*40)
 
+    df['hour'].value_counts().sort_index().plot(kind='bar')
+    plt.title("Trips by Hour")
+    plt.xlabel("Hour")
+    plt.ylabel("Count")
+    plt.show()
+
+    print("\nThis took %s seconds." % (time.time() - start_time))
+    print('-'*40)
 
 def station_stats(df):
     """Displays statistics on the most popular stations and trip."""
@@ -144,16 +159,44 @@ def user_stats(df):
     print("\nThis took %s seconds." % (time.time() - start_time))
     print('-'*40)
 
+def display_raw_data(df):
+    """Displays raw data in chunks of 5 rows upon user request."""
+    i = 0
+    pd.set_option('display.max_columns', None)
+
+    while True:
+        # Input validation loop
+        while True:
+            raw = input('Would you like to see 5 lines of raw data? Enter yes or no: ').lower()
+            if raw in ['yes', 'no']:
+                break
+            print("Invalid input. Please enter yes or no.")
+
+        if raw == 'no':
+            break
+
+        print(df.iloc[i:i+5])
+        i += 5
+
+        if i >= len(df):
+            print("No more data to display.")
+            break
+
 
 def main():
     while True:
         city, month, day = get_filters()
         df = load_data(city, month, day)
+        if df.empty:
+            print("No data loaded. Restarting...")
+            continue
 
         time_stats(df)
         station_stats(df)
         trip_duration_stats(df)
         user_stats(df)
+
+        display_raw_data(df) 
 
         restart = input('\nWould you like to restart? Enter yes or no.\n')
         if restart.lower() != 'yes':
